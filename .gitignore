@@ -1,0 +1,9 @@
+.ipynb_checkpoints/
+__pycache__/
+.DS_Store
+javascript/node_modules
+javascript/.editorconfig
+javascript/.gitattributes
+javascript/.pnp.cjs
+javascript/.pnp.loader.mjs
+javascript/.yarn
