@@ -1,9 +1,9 @@
 .ipynb_checkpoints/
 __pycache__/
 .DS_Store
-javascript/node_modules
-javascript/.editorconfig
-javascript/.gitattributes
-javascript/.pnp.cjs
-javascript/.pnp.loader.mjs
-javascript/.yarn
+threejs/node_modules
+threejs/.editorconfig
+threejs/.gitattributes
+threejs/.pnp.cjs
+threejs/.pnp.loader.mjs
+threejs/.yarn
