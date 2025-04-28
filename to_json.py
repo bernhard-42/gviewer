@@ -57,7 +57,7 @@ def to_json(
     poly_assembly = {
         "format": "GDS",
         "version": 1.0,
-        "label": top_name,
+        "name": top_name,
         "id": f"/{top_name}",
         "loc": [(0, 0, 0), (0, 0, 0, 1)],
         "parts": [],
@@ -91,7 +91,15 @@ def to_json(
             "name": layer_view.name,
             "id": f"/{top_name}/{layer_view.name}",
             "loc": [(0, 0, zmin), (0, 0, 0, 1)],
-            "parts": [],
+            "color": layer_view.fill_color.as_hex(),
+            "shape": {
+                "polygons": [],
+                "height": height,
+            },
+            "renderback": False,
+            "state": [1, 1],
+            "type": "polygon",
+            "subtype": "solid",
         }
 
         assert layer_view.fill_color is not None
@@ -99,21 +107,8 @@ def to_json(
             has_polygons = True
             polygons = polygons_per_layer[layer_index]
             for i, polygon in enumerate(polygons):
-                poly_sub_assembly["parts"].append(
-                    {
-                        "name": f"{layer_view.name}_{i}",
-                        "id": f"/{top_name}/{layer_view.name}/{layer_view.name}_{i}",
-                        "color": layer_view.fill_color.as_hex(),
-                        "loc": [(0, 0, 0), (0, 0, 0, 1)],
-                        "shape": {
-                            "polygon": np.array(polygon, dtype="float32"),
-                            "height": height,
-                        },
-                        "renderback": False,
-                        "state": [1, 1],
-                        "type": "polygon",
-                        "subtype": "solid",
-                    }
+                poly_sub_assembly["shape"]["polygons"].append(
+                    np.array(polygon, dtype="float32")
                 )
             poly_assembly["parts"].append(poly_sub_assembly)
 
@@ -128,7 +123,7 @@ def to_json(
 
 # %%
 if __name__ == "__main__":
-    example = 1
+    example = 2
 
     if example == 1:
         c = gf.c.straight_heater_doped_rib(length=100)

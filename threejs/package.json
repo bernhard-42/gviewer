@@ -1,13 +1,13 @@
 {
-  "name": "javascript",
-  "packageManager": "yarn@4.3.1",
-  "dependencies": {
-    "three": "^0.176.0"
-  },
-  "devDependencies": {
-    "vite": "^6.3.3"
-  },
-  "scripts": {
-    "start": "vite"
-  }
+    "name": "javascript",
+    "packageManager": "yarn@4.9.1",
+    "dependencies": {
+        "three": "^0.176.0"
+    },
+    "devDependencies": {
+        "vite": "^6.3.3"
+    },
+    "scripts": {
+        "start": "vite"
+    }
 }
