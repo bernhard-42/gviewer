@@ -396,7 +396,7 @@ if __name__ == "__main__":
         init_sky130()
 
         c = gdstk.read_gds("examples/sram_32_1024_sky130A.gds")
-        name = "sram_2_16"
+        name = "sram_32_1024"
 
         # polydrawing_m:   polygons:  70406 points: 1014418
         # nwelldrawing_m:  polygons:    262 points:    1812
