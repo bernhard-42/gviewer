@@ -342,14 +342,14 @@ if __name__ == "__main__":
         # c = gf.c.straight_heater_doped_rib(length=100)
         # c.write_gds("straight_heater_doped_rib.gds")
 
-        c = gdstk.read_gds("straight_heater_doped_rib.gds")
+        c = gdstk.read_gds("examples/straight_heater_doped_rib.gds")
 
         name = "straight_heater_doped"
 
     elif example == 2:
         init_sky130()
 
-        c = gdstk.read_gds("example_sky130.gds")
+        c = gdstk.read_gds("examples/example_sky130.gds")
         name = "sky130"
 
         # polydrawing_m:    polygons:   3626 points:   42794
@@ -372,7 +372,7 @@ if __name__ == "__main__":
     elif example == 3:
         init_sky130()
 
-        c = gdstk.read_gds("sram_2_16_sky130A.gds")
+        c = gdstk.read_gds("examples/sram_2_16_sky130A.gds")
         name = "sram_2_16"
 
         # polydrawing_m:    polygons:   515 points:   6764
@@ -392,7 +392,7 @@ if __name__ == "__main__":
     elif example == 4:
         init_sky130()
 
-        c = gdstk.read_gds("sram_32_1024_sky130A.gds")
+        c = gdstk.read_gds("examples/sram_32_1024_sky130A.gds")
         name = "sram_2_16"
 
         # polydrawing_m:   polygons:  70406 points: 1014418
@@ -409,7 +409,7 @@ if __name__ == "__main__":
         # via3drawing_m:   polygons:   1209 points:    4836
         # met4drawing_m:   polygons:    638 points:    5112
 
-    with open(f"{name}.js", "w") as fd:
+    with open(f"viewer/js/{name}.js", "w") as fd:
         j = to_json(c, return_json=not DEBUG)
         if not DEBUG:
             fd.write(f"const {name} = {j};")

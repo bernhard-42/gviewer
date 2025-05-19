@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>CadQuery Viewer</title>
+  <link rel="stylesheet" href="./css/three-cad-viewer.css" /> <!-- 1.8.0 -->
+
+    <script src="./js/straight_heater_doped.js"></script>
+    <script src="./js/sky130.js"></script>
+
+  <script type="module">
+    import { Viewer, Display, Timer } from "./js/three-cad-viewer.esm.js";
+
+    var viewer = null;
+    var display = null;
+
+    const examples = [
+      straight_heater_doped,
+      sky130,
+    ];
+    
+    function fromB64(s) {
+        let bytes = atob(s);
+        let uint = new Uint8Array(bytes.length);
+        for (var i = 0; i < bytes.length; i++) uint[i] = bytes[i].charCodeAt(0);
+        return uint;
+    }
+
+    function convert(obj) {
+        var vectorArray = [];
+        var buffer = fromB64(obj.buffer);
+        if (obj.dtype === "float32") {
+            var coords = new Float32Array(buffer.buffer);
+
+        } else {
+            console.log("Error: unknown dtype", obj.dtype);
+        }
+        return coords;
+    }
+
+    function render(name, shapes) { 
+      const timer = new Timer("renderer", timeit);
+      function walk(parts) {
+        for (var index in parts) {
+          const part = parts[index];
+          if (part.shape) {
+            if (part.shape.offsets) {
+              part.shape.offsets = convert(part.shape.offsets);
+            }
+          }
+          if (part.parts) {
+            walk(part.parts);
+          }
+        }
+      }
+      
+      if(shapes.format == "GDS") {
+        for (var index in shapes.instances) {
+          shapes.instances[index] = convert(shapes.instances[index]);
+        }
+        walk(shapes.parts);
+
+        timer.split("convert polygons");                
+      }
+
+      viewer?.clear();
+
+      viewer._timeit = timeit;
+
+      timer.split("rendering done");
+
+      viewer.render(
+        shapes,
+        renderOptions,
+        viewerOptions,
+      );
+
+      timer.split("showing done");
+
+      window.viewer = viewer;
+      timer.split("animation setup done");
+      timer.stop();
+    }
+
+    function nc(change) {
+      // console.debug("index.html:", JSON.stringify(change, null, 2));
+    }
+
+    const timeit = false;
+    const timer = new Timer("main", timeit);
+
+    const displayOptions = {
+      cadWidth: 1720,
+      height: 940,
+      treeWidth: 240,
+      theme: "dark",
+      pinning: true,
+      keymap: {
+        "shift": "shiftKey",
+        "ctrl": "ctrlKey",
+        "meta": "metaKey"
+      },
+      newTreeBehavior: true,
+    };
+
+    const renderOptions = {
+      ambientIntensity: 1.0,
+      directIntensity: 1.1,
+      metalness: 0.30,
+      roughness: 0.65,
+      edgeColor: 0x707070,
+      defaultOpacity: 0.5,
+      normalLen: 0,
+    };
+
+    const viewerOptions = {
+      ortho: true,
+      ticks: 10,
+      centerGrid: false,
+      // transparent: true,
+      // blackEdges: true,
+      // axes: true,
+      // axes0: true,
+      // grid: [true, false, true],
+      timeit: true,
+      // clipIntersection: false,
+      // clipPlaneHelpers: false,
+      // clipObjectColors: true,
+      // clipNormal0: [-0.7, 0.25, -0.66],
+      // clipNormal2: [-0.8, -0.4, -0.5],
+      // clipSlider0: 20,
+      // clipSlider1: 10,
+      // clipSlider2: 30,
+      // ticks: 50,
+      rotateSpeed: 1.0,
+      zoomSpeed: 0.5,
+      panSpeed: 0.5,
+      // tools: false,
+      // position: [529.033598621696, -60.76490228572615, 833.5255981339967],
+      // quaternion: [0.1279694269733356, 0.17808830219432778, 0.792315727012021, 0.5693366061576142],
+      // target: [133.7552476361796, -193.79076438378323, -47.35882179018034],
+      // zoom: 1,
+      glass: true,
+      collapse: 3,
+      measureTools: false,
+    };
+    
+    function showViewer(control, mode, containerId) {
+      if (window.viewer != null) {
+        window.viewer.hasAnimationLoop = false;
+        window.viewer.continueAnimation = false;
+        window.viewer.dispose()
+        window.viewer = null;
+      }
+      if (mode == "glass") {
+          displayOptions.glass = true;
+          displayOptions.tools = true;
+        } else if (mode == "no tools") {
+          displayOptions.glass = false;
+          displayOptions.tools = false;
+        } else {
+          displayOptions.glass = false;
+          displayOptions.tools = true;
+        }
+      if (window.display==null){
+        const container = document.getElementById(containerId);
+        container.innerHTML = ""
+
+        window.display = new Display(container, displayOptions)
+      }
+      window.viewerMode = mode;
+
+      window.display.glassMode(displayOptions.glass);
+      window.display.showTools(displayOptions.tools);
+
+      // console.log(control);
+      // console.log(window.controlMode);
+      window.controlMode = control;
+      var control_up = control.split("/");
+      // console.log(control_up);
+      // window.controlMode = control_up[0];
+      // window.up = control_up[1][0];
+
+      viewer = new Viewer(window.display, displayOptions, nc);
+
+      timer.split("display created");
+
+      viewerOptions.control = control_up[0];
+      viewerOptions.up = control_up[1][0];
+
+      render(window.selectedExample, structuredClone(examples[window.selectedIndex]));
+
+
+      timer.stop();
+
+      // viewer.trimUI(["axes", "axes0", "grid", "ortho", "more", "help"])
+    }
+
+    // examples[1][1]["/bottom/bottom_0"] = [1,0]
+    // examples[1][1]["/bottom/top/top_0"] = [0,1]
+    // examples[1][1]["/bottom/front_stand/front_stand_0"] = [0,0]
+
+    window.selectedIndex = 0;
+    window.selectedExample = "box1";
+    window.viewerMode = "glass";
+    window.controlMode = "trackball/Z up";
+
+    showViewer(window.controlMode, window.viewerMode, "cad_view_001");
+    // showViewer(window.controlMode, window.viewerMode, "cad_view_002");
+
+    // Enable debugging in browser console
+    window.render = render;
+    window.examples = examples;
+    window.showViewer = showViewer;
+    // window.setMode = setMode;
+
+    console.log("Loaded", new Date());
+  </script>
+  <style>
+    @media(prefers-color-scheme: dark) {
+      body {
+        background-color: var(--tcv-bg-color);
+        color: var(--tcv-font-color);
+      }
+    }
+
+    body {
+      margin: 0px !important;
+    }
+
+    .main {
+      margin: 12px;
+      font-family: sans-serif;
+    }
+
+    .selection {
+      margin-left: 8px;
+    }
+  </style>
+</head>
+
+
+<body>
+  <div class="main">
+    Demo:
+    <span id="navigation" class="selection">
+      UI
+      <select class="select"
+        onchange="window.showViewer(window.controlMode, this.options.item(this.selectedIndex).text, 'cad_view_001');">
+        <option value="glass">glass</option>
+        <option value="default">default</option>
+        <option value="notools">no tools</option>
+      </select>
+    </span>
+
+    <span id="control" class="selection">
+      Control
+      <select class="select"
+        onchange="window.showViewer(this.options.item(this.selectedIndex).text, window.viewerMode, 'cad_view_001');">
+        <option value="trackball">trackball/Z up</option>
+        <option value="trackball">trackball/Y up</option>
+        <option value="trackball">trackball/Legacy</option>
+        <option value="orbit">orbit/Z up</option>
+        <option value="orbit">orbit/Y up</option>
+        <option value="orbit">orbit/Legacy</option>
+      </select>
+    </span>
+
+    <span id="examples" class="selection">
+      Examples
+      <select class="select"
+        onchange="window.selectedExample=this.options.item(this.selectedIndex).text; window.selectedIndex=this.selectedIndex; showViewer(window.controlMode, window.viewerMode, 'cad_view_001')">
+        
+        <option value="straight_heater_doped">straight_heater_doped</option>
+        <option value="sky130">sky130</option>
+      </select>
+    </span>
+  </div>
+  <div id="cad_view_001"></div>
+  <div id="cad_view_002"></div>
+</body>
+
+</html>
