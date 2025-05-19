@@ -333,7 +333,7 @@ def to_json(lib, return_json=True):
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) > 1:
+    if len(sys.argv) == 2:
         example = int(sys.argv[1])
     else:
         example = 2
