@@ -294,7 +294,7 @@ def to_json(lib, return_json=True):
                     poly_shape = {
                         "version": 3,
                         "name": f"group_{index}",
-                        "id": f"/{top_name}/C:{top_name}/L:{layer_name}/group_{index}",
+                        "id": f"/{lib.name}/C:{top_name}/L:{layer_name}/group_{index}",
                         "loc": [(0, 0, get_layer_zmin(layer)), (0, 0, 0, 1)],
                         "color": get_layer_color(layer),
                         "shape": {
