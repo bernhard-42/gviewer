@@ -334,8 +334,8 @@ if __name__ == "__main__":
 
         init_generic()
 
-        #        c = gf.c.straight_heater_doped_rib(length=100)
-        #        c.write_gds("straight_heater_doped_rib.gds")
+        # c = gf.c.straight_heater_doped_rib(length=100)
+        # c.write_gds("straight_heater_doped_rib.gds")
 
         c = gdstk.read_gds("straight_heater_doped_rib.gds")
 
