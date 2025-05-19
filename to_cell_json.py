@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import numpy as np
 import orjson
+import time
 
 import gdstk
 import sky130
@@ -179,7 +180,7 @@ def to_json(lib, return_json=True):
         exclude_layers: list of layer index to exclude.
 
     """
-
+    start = time.time()
     poly_assembly = {
         "format": "GDS",
         "version": 3,
@@ -263,10 +264,12 @@ def to_json(lib, return_json=True):
             )  # sort be zmin
 
             top_parts["parts"].append(cell_parts)
+        print("duration for references:", time.time() - start)
 
         #
         # Handle top level elements
         #
+        start = time.time()
         polygons = get_layer_polygons(top_cell)
         for layer, layer_polygons in polygons.items():
             layer_name = get_layer_name(layer)
@@ -318,7 +321,7 @@ def to_json(lib, return_json=True):
         poly_assembly["parts"].append(top_parts)
         if DEBUG:
             poly_assembly["instances"] = []
-        print(f"Ignored layers {list(ignored)}")
+        print("duration with geo analyzer:", time.time() - start)
 
     if return_json:
         return orjson.dumps(numpy_to_buffer_json(poly_assembly)).decode("utf-8")
