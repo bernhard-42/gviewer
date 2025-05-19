@@ -9,7 +9,7 @@ import sky130
 import gdsfactory as gf
 from gdsfactory.generic_tech import get_generic_pdk
 
-from ocp_tessellate.utils import numpy_to_buffer_json
+from serialize import numpy_to_buffer_json
 from polygon import group_by_length, group_congruent_polygons
 
 # %%
@@ -328,7 +328,12 @@ def to_json(lib, return_json=True):
 
 # %%
 if __name__ == "__main__":
-    example = 2
+    import sys
+
+    if len(sys.argv) > 1:
+        example = int(sys.argv[1])
+    else:
+        example = 2
 
     if example == 1:
 

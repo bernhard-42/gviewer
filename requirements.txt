@@ -1,0 +1,9 @@
+gdsfactory==9.5.2
+gdstk==0.9.60
+sky130==0.13.1
+orjson==3.10.16
+numba==0.61.2
+numpy==2.2.5
+plotly==6.0.1
+shapely==2.1.0
+distinctipy==1.3.4
