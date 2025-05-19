@@ -10,7 +10,7 @@
     pip install -r requirements.txt
     ```
 
-- Create the example:
+- Create the example (optional, the js files are already in viewer.js):
 
     ```bash
     # 1 = gf component example
@@ -28,4 +28,4 @@
     python -m http.server
     ```
 
-    and open the browser
+    and open the browser at http://localhost:8000
