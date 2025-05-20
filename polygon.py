@@ -96,6 +96,20 @@ def transform(points, trans_index):
     return transformed
 
 
+def remap_transform(trans_index):
+    mapping = [
+        (0, False),
+        (np.pi / 2, False),
+        (np.pi, False),
+        (3 * np.pi / 2, False),
+        (0, True),
+        (np.pi / 2, True),
+        (np.pi, True),
+        (3 * np.pi / 2, True),
+    ]
+    return mapping[trans_index]
+
+
 def center(points):
     centroid = (np.min(points, axis=0) + np.max(points, axis=0)) / 2
     return (points - centroid).astype(np.float32), centroid
@@ -108,10 +122,6 @@ def group_by_length(polygons):
     return groups
 
 
-# def hash_polygon(polygon):
-#    return hash(normalize(set_precision(Polygon(polygon), grid_size=0.00001)))
-
-
 def hash_polygon(polygon):
     return hash(
         tuple(
@@ -122,47 +132,6 @@ def hash_polygon(polygon):
             .tolist()
         )
     )
-
-
-# def group_congruent_polygons(polygons):
-#    groups = {}
-#
-#    for idx, poly in enumerate(polygons):
-#        centered_poly, centroid = center(poly)
-#
-#        found = False
-#        # Do not try all transformations for the first polygon
-#        if idx > 0:
-#            is_rectangle, is_square = is_rectangle_or_square(centered_poly)
-#            if is_square:
-#                MAP = MAP_SQUARE
-#            elif is_rectangle:
-#                MAP = MAP_RECTANGLE
-#            else:
-#                MAP = MAP_ALL
-#
-#            for trans_index in MAP:
-#                key = hash_polygon(transform(centered_poly, trans_index))
-#                if groups.get(key) is not None:
-#                    groups[key].append(
-#                        {
-#                            "idx": idx,
-#                            "centroid": centroid.tolist(),
-#                            "transformation": INVERSE_MAP[trans_index],
-#                        }
-#                    )
-#                    found = True
-#                    break
-#
-#        if not found:
-#            # first element is the reference polygon
-#            key = hash_polygon(centered_poly)
-#            groups[key] = [centered_poly]
-#
-#            # All other elements are instances
-#            groups[key].append({"idx": idx, "centroid": centroid.tolist(), "transformation": 0})
-#
-#    return groups
 
 
 def group_congruent_polygons(polygons):
@@ -188,8 +157,12 @@ def group_congruent_polygons(polygons):
                     groups[key].append(
                         {
                             "idx": idx,
-                            "centroid": centroid.tolist(),
-                            "transformation": trans_index,
+                            # ((origin.x, origin.y), rotation, x_reflection, magnification)
+                            "transformation": [
+                                centroid.tolist(),
+                                *remap_transform(trans_index),
+                                1.0,
+                            ],
                         }
                     )
                     found = True
@@ -202,7 +175,11 @@ def group_congruent_polygons(polygons):
             x = normalize(Polygon(transform(centered_poly, 0)))
             # All other elements are instances
             groups[key].append(
-                {"idx": idx, "centroid": centroid.tolist(), "transformation": 0}
+                {
+                    "idx": idx,
+                    # ((origin.x, origin.y), rotation, x_reflection, magnification)
+                    "transformation": [centroid.tolist(), *remap_transform(0), 1.0],
+                }
             )
 
     return groups

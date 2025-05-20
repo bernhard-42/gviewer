@@ -130,17 +130,28 @@ def get_references(cell):
             tuple(ref.origin),  # (x, y) coordinates
             ref.rotation,  # Rotation in radians
             ref.x_reflection,  # Boolean reflection state
+            ref.magnification,  # Magnification factor
         )
-        cells[ref.cell.name] = ref.cell
-        reference_data[ref.cell.name].add(transform)
 
-    return {
-        cell_name: {
-            "cell": cells[cell_name],
-            "transforms": sorted(transforms, key=lambda x: (x[0], x[1], x[2])),
+        if (
+            ref.repetition.columns is not None
+            or ref.repetition.offsets is not None
+            or ref.repetition.x_offsets is not None
+            or ref.repetition.y_offsets is not None
+        ):
+            print(
+                f"Warning: Repetition not supported for {ref.cell.name} in {cell.name}"
+            )
+        cells[(ref.cell.name, hash(ref.cell))] = ref.cell
+        reference_data[(ref.cell.name, hash(ref.cell))].add(transform)
+
+    return [
+        {
+            "cell": cells[key],
+            "transforms": sorted(transforms, key=lambda x: (x[0], x[1], x[2], x[3])),
         }
-        for cell_name, transforms in reference_data.items()
-    }
+        for key, transforms in reference_data.items()
+    ]
 
 
 # %%
@@ -172,6 +183,105 @@ def get_trans_index(rotation, x_reflected):
         )
 
 
+def get_trans_matrix(origin, rotation, x_reflected, magnification):
+    s, c = np.sin(rotation), np.cos(rotation)
+    x, y = origin
+    r = -1 if x_reflected else 1
+    return np.array([[c, -r * s, x], [s, r * c, y], [0, 0, 1]]) * magnification
+
+
+def handle_references(
+    parent_cell_name,
+    parent_cell,
+    path,
+    poly_assembly,
+    instance_index,
+    parent_matrices=None,
+):
+    parts = []
+
+    references = get_references(parent_cell)
+    for reference in references:
+        cell = reference["cell"]
+
+        if parent_matrices is None:
+            matrices = [
+                get_trans_matrix(*transform) for transform in reference["transforms"]
+            ]
+        else:
+            matrices = [
+                matrix @ get_trans_matrix(*transform)
+                for transform in reference["transforms"]
+                for matrix in parent_matrices
+            ]
+
+        cell_parts = {
+            "version": 3,
+            "name": f"C:{cell.name}",
+            "id": f"{path}/C:{cell.name}",
+            "loc": [(0, 0, 0), (0, 0, 0, 1)],
+            "parts": [],
+        }
+
+        instance_index, ref_parts = handle_references(
+            cell.name,
+            cell,
+            f"{path}/C:{cell.name}",
+            poly_assembly,
+            instance_index,
+            matrices,
+        )
+
+        cell_parts["parts"] = ref_parts
+
+        polygons = get_polygons(cell)
+
+        for layer, layer_polygons in polygons.items():
+            try:
+                layer_name = get_layer_name(layer)
+            except:
+                continue
+
+            refs = []
+            for polygon in layer_polygons:
+                poly_assembly["instances"].append(polygon.points.astype("float32"))
+                refs.append(instance_index)
+                instance_index += 1
+
+            poly_shape = {
+                "version": 3,
+                "name": f"L:{layer_name}",
+                "id": f"{path}/C:{cell.name}/L:{layer_name}",
+                "loc": [(0, 0, get_layer_zmin(layer)), (0, 0, 0, 1)],
+                "color": get_layer_color(layer),
+                "shape": {
+                    "refs": refs,
+                    "matrices": (
+                        [len(matrices)]
+                        if DEBUG
+                        else np.asarray(
+                            [matrix[:2].reshape(-1) for matrix in matrices],
+                            dtype="float32",
+                        )
+                    ),
+                    "height": get_layer_thickness(layer),
+                },
+                "renderback": False,
+                "state": [1, 1],
+                "type": "polygon",
+                "subtype": "solid",
+            }
+            cell_parts["parts"].append(poly_shape)
+
+        cell_parts["parts"] = sorted(
+            cell_parts["parts"], key=lambda shape: shape["loc"][0][2]  # sort be zmin
+        )
+
+        parts.append(cell_parts)
+
+    return instance_index, parts
+
+
 def to_json(lib, return_json=True):
     """Return optimzed json.
 
@@ -191,7 +301,6 @@ def to_json(lib, return_json=True):
         "parts": [],
     }
     instance_index = 0
-    ignored = set()
     top_level_cells = {c.name: c for c in lib.top_level()}
 
     for top_name, top_cell in top_level_cells.items():
@@ -200,7 +309,6 @@ def to_json(lib, return_json=True):
         # Handle top level references
         #
 
-        references = get_references(top_cell)
         top_parts = {
             "version": 3,
             "name": f"C:{top_name}",
@@ -208,62 +316,17 @@ def to_json(lib, return_json=True):
             "loc": [(0, 0, 0), (0, 0, 0, 1)],
             "parts": [],
         }
-        for cell_name, cell_insts in references.items():
-            cell = cell_insts["cell"]
-            transforms = cell_insts["transforms"]
-            cell_parts = {
-                "version": 3,
-                "name": f"C:{cell_name}",
-                "id": f"/{lib.name}/C:{top_name}/C:{cell_name}",
-                "loc": [(0, 0, 0), (0, 0, 0, 1)],
-                "parts": [],
-            }
 
-            polygons = get_polygons(cell)
+        instance_index, ref_parts = handle_references(
+            top_name,
+            top_cell,
+            f"/{lib.name}/C:{top_name}",
+            poly_assembly,
+            instance_index,
+        )
 
-            for layer, layer_polygons in polygons.items():
+        top_parts["parts"] = ref_parts
 
-                try:
-                    layer_name = get_layer_name(layer)
-                except:
-                    ignored.add(f"{PDK.get_layer_name(layer)}:{layer}")
-                    continue
-
-                refs = []
-                for polygon in layer_polygons:
-                    poly_assembly["instances"].append(polygon.points.astype("float32"))
-                    refs.append(instance_index)
-                    instance_index += 1
-                offsets = np.asarray(
-                    [
-                        (*item[0], get_trans_index(item[1], item[2]))
-                        for item in transforms
-                    ],
-                    dtype="float32",
-                )
-                poly_shape = {
-                    "version": 3,
-                    "name": f"L:{layer_name}",
-                    "id": f"/{lib.name}/C:{top_name}/C:{cell_name}/L:{layer_name}",
-                    "loc": [(0, 0, get_layer_zmin(layer)), (0, 0, 0, 1)],
-                    "color": get_layer_color(layer),
-                    "shape": {
-                        "refs": refs,
-                        "offsets": ([len(transforms)] if DEBUG else offsets),
-                        "height": get_layer_thickness(layer),
-                    },
-                    "renderback": False,
-                    "state": [1, 1],
-                    "type": "polygon",
-                    "subtype": "solid",
-                }
-                cell_parts["parts"].append(poly_shape)
-
-            cell_parts["parts"] = sorted(
-                cell_parts["parts"], key=lambda shape: shape["loc"][0][2]
-            )  # sort be zmin
-
-            top_parts["parts"].append(cell_parts)
         print("duration for references:", time.time() - start)
 
         #
@@ -287,8 +350,11 @@ def to_json(lib, return_json=True):
 
                 for group in congruent_polygons.values():
                     poly_assembly["instances"].append(group[0])
-                    offsets = np.asarray(
-                        [(*p["centroid"], p["transformation"]) for p in group[1:]],
+                    matrices = np.asarray(
+                        [
+                            get_trans_matrix(*p["transformation"])[:2].reshape(-1)
+                            for p in group[1:]
+                        ],
                         dtype="float32",
                     )
                     poly_shape = {
@@ -299,7 +365,7 @@ def to_json(lib, return_json=True):
                         "color": get_layer_color(layer),
                         "shape": {
                             "refs": [instance_index],
-                            "offsets": ([len(offsets)] if DEBUG else offsets),
+                            "matrices": ([len(matrices)] if DEBUG else matrices),
                             "height": get_layer_thickness(layer),
                         },
                         "renderback": False,
@@ -318,7 +384,9 @@ def to_json(lib, return_json=True):
 
             top_parts["parts"].append(layer_parts)
 
-        poly_assembly["parts"].append(top_parts)
+        if len(top_parts["parts"]) > 0:
+            poly_assembly["parts"].append(top_parts)
+
         if DEBUG:
             poly_assembly["instances"] = []
         print("duration with geo analyzer:", time.time() - start)
@@ -336,7 +404,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         example = int(sys.argv[1])
     else:
-        example = 2
+        example = 5
 
     if example == 1:
 
@@ -412,9 +480,20 @@ if __name__ == "__main__":
         # via3drawing_m:   polygons:   1209 points:    4836
         # met4drawing_m:   polygons:    638 points:    5112
 
+    elif example == 5:
+
+        init_generic()
+
+        # c = gf.c.straight_heater_doped_rib(length=100)
+        # c.write_gds("straight_heater_doped_rib.gds")
+
+        c = gdstk.read_gds("ref.gds")
+
+        name = "ref"
+
     with open(f"viewer/js/{name}.js", "w") as fd:
-        j = to_json(c, return_json=not DEBUG)
+        j = to_json(c, return_json=True)
         if not DEBUG:
             fd.write(f"const {name} = {j};")
 
-# %%
+    # %%
