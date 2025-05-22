@@ -8,6 +8,9 @@
 
     <script src="./js/straight_heater_doped.js"></script>
     <script src="./js/sky130.js"></script>
+    <script src="./js/sram_2_16.js"></script>
+    <!-- <script src="./js/sram_32_1024.js"></script> -->
+    <script src="./js/ref.js"></script>
 
   <script type="module">
     import { Viewer, Display, Timer } from "./js/three-cad-viewer.esm.js";
@@ -18,6 +21,9 @@
     const examples = [
       straight_heater_doped,
       sky130,
+      sram_2_16,
+      // sram_32_1024,
+      ref,
     ];
     
     function fromB64(s) {
@@ -45,8 +51,8 @@
         for (var index in parts) {
           const part = parts[index];
           if (part.shape) {
-            if (part.shape.offsets) {
-              part.shape.offsets = convert(part.shape.offsets);
+            if (part.shape.matrices) {
+              part.shape.matrices = convert(part.shape.matrices);
             }
           }
           if (part.parts) {
@@ -93,7 +99,7 @@
     const displayOptions = {
       cadWidth: 1720,
       height: 940,
-      treeWidth: 240,
+      treeWidth: 340,
       theme: "dark",
       pinning: true,
       keymap: {
@@ -273,7 +279,10 @@
         onchange="window.selectedExample=this.options.item(this.selectedIndex).text; window.selectedIndex=this.selectedIndex; showViewer(window.controlMode, window.viewerMode, 'cad_view_001')">
         
         <option value="straight_heater_doped">straight_heater_doped</option>
-        <option value="sky130">sky130</option>
+        <!-- <option value="sky130">sky130</option> -->
+        <option value="sram_2_16">sram_2_16</option>
+        <option value="sram_32_1024">sram_32_1024</option>
+        <option value="ref">ref</option>
       </select>
     </span>
   </div>

@@ -187,7 +187,12 @@ def get_trans_matrix(origin, rotation, x_reflected, magnification):
     s, c = np.sin(rotation), np.cos(rotation)
     x, y = origin
     r = -1 if x_reflected else 1
-    return np.array([[c, -r * s, x], [s, r * c, y], [0, 0, 1]]) * magnification
+    m = magnification
+    # Use scaling to mirror
+    return np.array([[c, -r * s, x], [s, r * c, y], [0, 0, 1]]) * m
+
+    # use rotation around x axis to mirror
+    # return np.array([[c * m, -r * s * m, r * x], [s * m, r * c * m, r * y], [0, 0, r]])
 
 
 def handle_references(
@@ -404,7 +409,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 2:
         example = int(sys.argv[1])
     else:
-        example = 5
+        example = 2
 
     if example == 1:
 
